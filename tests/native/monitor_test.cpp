@@ -256,6 +256,36 @@ private slots:
         f.exec(1, "UPDATE thread_turns SET rollout_ordinal=" + ordinalSql + " WHERE status='failed'"); QVERIFY(f.ready);
         const auto result = f.scan(); QVERIFY(!result.healthy); QCOMPARE(code(result), "UNKNOWN_TERMINAL_STATE");
     }
+    void activeToolsGoalsAndQueueKeepAllThreeChatsRunning() {
+        Fixture f; f.thread("a", "inProgress"); f.thread("b", "inProgress"); f.thread("c", "inProgress");
+        f.item("a", 1, "mcp", 1, "mcpToolCall", {{"status","inProgress"}});
+        f.item("b", 1, "command", 1, "commandExecution", command(QJsonValue::Null));
+        f.item("c", 1, "change", 1, "fileChange", {{"status","inProgress"}});
+        f.exec(2, "INSERT INTO thread_goals VALUES (?,?,?)", {"a","active",now});
+        f.exec(3, "INSERT INTO queued_items VALUES (?,?,?)", {"item","b",now}); QVERIFY(f.ready);
+        const auto result = f.scan(); QVERIFY(result.healthy); QCOMPARE(result.threads.size(), 3);
+        for (const auto &thread : result.threads) {
+            QCOMPARE(thread.status, "running"); QCOMPARE(thread.turnStatus, "inProgress"); QVERIFY(thread.workPending);
+        }
+        QCOMPARE(result.blockers.size(), 5);
+    }
+    void earlyProjectionLagRetainsLaterActiveInventory() {
+        Fixture f; f.thread("a", "inProgress"); f.thread("b", "inProgress"); f.thread("c", "inProgress");
+        QFile file(f.rollout("a")); QVERIFY(file.open(QIODevice::Append)); file.write("unprojected event\n"); file.close();
+        f.item("a", 1, "pending", 1, "mcpToolCall", {{"status","inProgress"}}); QVERIFY(f.ready);
+        const auto result = f.scan(); QVERIFY(!result.healthy); QCOMPARE(result.threads.size(), 3);
+        QCOMPARE(code(result), "PROJECTION_LAG"); QCOMPARE(result.threads[0].status, "unknown");
+        QCOMPARE(result.threads[0].turnStatus, "inProgress"); QVERIFY(result.threads[0].workPending);
+        QVERIFY(result.threads[0].reason.contains("projection"));
+        QCOMPARE(result.threads[1].status, "running"); QCOMPARE(result.threads[2].status, "running");
+    }
+    void earlyHistoryMismatchRetainsLaterActiveInventory() {
+        Fixture f; f.thread("a", "inProgress"); f.thread("b", "inProgress"); f.thread("c", "inProgress");
+        f.exec(0, "UPDATE threads SET history_mode='future' WHERE id='a'"); QVERIFY(f.ready);
+        const auto result = f.scan(); QVERIFY(!result.healthy); QCOMPARE(result.threads.size(), 3);
+        QCOMPARE(code(result), "STORE_INCOMPATIBLE"); QCOMPARE(result.threads[0].status, "unknown");
+        QCOMPARE(result.threads[1].status, "running"); QCOMPARE(result.threads[2].status, "running");
+    }
 };
 QTEST_GUILESS_MAIN(MonitorTest)
 #include "monitor_test.moc"

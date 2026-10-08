@@ -32,6 +32,7 @@ private:
     Policy policy_;
     Observation observation_;
     QTimer timer_;
+    qint64 lastHistoryPruneAt_ = 0;
     QString error_;
     bool busy_ = false, simulation_ = false, startupEnabled_ = false;
 };

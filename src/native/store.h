@@ -8,6 +8,7 @@ public:
     Settings settings() const;
     void saveSettings(const Settings &settings);
     void append(const QJsonObject &decision);
+    void pruneHistory(qint64 nowUtcMs);
     QVector<QJsonObject> history() const;
     QString directory() const { return directory_; }
 private:

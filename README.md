@@ -28,7 +28,7 @@ Before requesting shutdown, the utility flushes its settings and decision journa
 
 **It cannot save unsaved buffers in arbitrary editors.** It never commits projects, changes their files, or forces applications closed. Windows or another application may block the normal shutdown to handle unsaved work.
 
-Private state stays under `%LOCALAPPDATA%\CodexShutdownAutomation\state`: `settings.json` and `decisions.jsonl`. Enable permission exists only in memory. Chat titles appear locally in the work table and are not added to the decision journal.
+Private state stays under `%LOCALAPPDATA%\CodexShutdownAutomation\state`: `settings.json` and `decisions.jsonl`. Decision history has a **72-hour TTL**: expiry is checked at startup and once per minute while the monitor runs; expired records are physically removed using atomic replacement. Invalid or future-dated history records are also discarded. Saved settings remain until you change them. Enable permission exists only in memory. Chat titles appear locally in the work table and are not added to the decision journal.
 
 ## Monitoring coverage and limitations
 
@@ -46,7 +46,7 @@ Install Qt **6.8.3 MinGW x64**, the compatible **MinGW 13.1** compiler, CMake 3.
 .\scripts\Build.ps1 -QtRoot C:\Qt\6.8.3\mingw_64 -CompilerRoot C:\Qt\Tools\mingw1310_64
 ```
 
-The script builds the application, runs native policy/controller/SQLite/UI tests and a Windows hidden-launch regression, and uses `windeployqt` to produce `dist\app`. Supply `-CMakePath` and `-NinjaPath` if these tools are not on PATH. Compatible Qt 6.8+ SDKs can also be selected; distributed packages must include their matching license notices.
+The script builds the application, runs native policy/controller/SQLite/UI/retention tests and a Windows hidden-launch regression, and uses `windeployqt` to produce `dist\app`. Supply `-CMakePath` and `-NinjaPath` if these tools are not on PATH. Compatible Qt 6.8+ SDKs can also be selected; distributed packages must include their matching license notices.
 
 Open `CMakeLists.txt` in Qt Creator for development. Production source is under `src/native`; domain rules, orchestration, persistence, monitor and OS adapters, and Widgets UI have separate responsibilities. Periodic SQLite reads run on a background thread so the window remains responsive; the shutdown gate performs an uncached verification.
 

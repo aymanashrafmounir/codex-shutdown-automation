@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $root = Join-Path $env:LOCALAPPDATA 'CodexShutdownAutomation'
-$executable = Join-Path $root 'app-0.2.1\CodexShutdownAutomation.exe'
+$executable = Join-Path $root 'app-0.2.2\CodexShutdownAutomation.exe'
 if (Test-Path -LiteralPath $executable) {
     $quit = Start-Process -FilePath $executable -ArgumentList '--quit' -WindowStyle Hidden -Wait -PassThru
     if ($quit.ExitCode -ne 0) { throw 'The existing monitor refused to quit. Quit it from its tray menu; shortcuts were preserved.' }

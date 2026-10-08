@@ -11,7 +11,7 @@ $package = (Resolve-Path -LiteralPath $PackageDirectory).Path
 $sourceExecutable = Join-Path $package 'CodexShutdownAutomation.exe'
 if (-not (Test-Path -LiteralPath $sourceExecutable)) { throw 'Build or extract the native release package first.' }
 $applicationRoot = Join-Path $env:LOCALAPPDATA 'CodexShutdownAutomation'
-$installedApp = Join-Path $applicationRoot 'app-0.2.1'
+$installedApp = Join-Path $applicationRoot 'app-0.2.2'
 $executable = Join-Path $installedApp 'CodexShutdownAutomation.exe'
 # The verified package can contact a source/build instance even on first installation.
 $previous = Start-Process -FilePath $sourceExecutable -ArgumentList '--quit' -WindowStyle Hidden -Wait -PassThru
@@ -42,7 +42,7 @@ $desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Codex Shutdown A
 $startup = Join-Path ([Environment]::GetFolderPath('Startup')) 'Codex Shutdown Automation.lnk'
 Write-UtilityShortcut $desktop ''
 Write-UtilityShortcut $startup '--background'
-@{ version = '0.2.1'; installedAt = [DateTime]::UtcNow.ToString('o'); executable = $executable; desktopShortcutPath = $desktop; startupShortcutPath = $startup } |
+@{ version = '0.2.2'; installedAt = [DateTime]::UtcNow.ToString('o'); executable = $executable; desktopShortcutPath = $desktop; startupShortcutPath = $startup } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $applicationRoot 'installation.json') -Encoding UTF8
 Start-Process -FilePath $executable -ArgumentList '--background' -WorkingDirectory $installedApp -WindowStyle Hidden
 if (-not $NoOpen) { Start-Sleep -Milliseconds 750; Start-Process -FilePath $executable -WorkingDirectory $installedApp -WindowStyle Hidden }

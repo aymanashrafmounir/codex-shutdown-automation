@@ -63,6 +63,46 @@ void Store::append(const QJsonObject &decision) {
         throw std::runtime_error("Cannot save the shutdown decision. Shutdown is blocked.");
     durableFlush(file);
 }
+static QByteArray readHistoryLine(QFile &source) {
+    const QByteArray line = source.readLine();
+    if (source.error() != QFileDevice::NoError) throw std::runtime_error("Cannot read decision history for retention.");
+    return line;
+}
+static bool recentDecision(const QByteArray &line, qint64 nowUtcMs) {
+    QJsonParseError parse;
+    const auto document = QJsonDocument::fromJson(line, &parse);
+    if (parse.error != QJsonParseError::NoError || !document.isObject()) return false;
+    const auto timestamp = QDateTime::fromString(document.object().value("timestamp").toString(), Qt::ISODateWithMs);
+    const bool explicitZone = timestamp.timeSpec() == Qt::UTC || timestamp.timeSpec() == Qt::OffsetFromUTC;
+    if (!timestamp.isValid() || !explicitZone) return false;
+    constexpr qint64 retentionMs = 72 * 60 * 60 * 1000LL;
+    const qint64 recordedAt = timestamp.toUTC().toMSecsSinceEpoch();
+    return recordedAt > nowUtcMs - retentionMs && recordedAt <= nowUtcMs;
+}
+void Store::pruneHistory(qint64 nowUtcMs) {
+    QFile source(directory_ + "/decisions.jsonl");
+    if (!source.exists()) return;
+    if (!source.open(QIODevice::ReadOnly)) throw std::runtime_error("Cannot read decision history for retention.");
+    bool removed = false;
+    while (!source.atEnd()) {
+        if (!recentDecision(readHistoryLine(source), nowUtcMs)) { removed = true; break; }
+    }
+    if (!removed) return;
+    if (!source.seek(0)) throw std::runtime_error("Cannot reread decision history for retention.");
+    QSaveFile replacement(source.fileName());
+    replacement.setDirectWriteFallback(false);
+    if (!replacement.open(QIODevice::WriteOnly)) throw std::runtime_error("Cannot replace decision history for retention.");
+    while (!source.atEnd()) {
+        QByteArray line = readHistoryLine(source);
+        if (!recentDecision(line, nowUtcMs)) continue;
+        if (!line.endsWith('\n')) line += '\n';
+        if (replacement.write(line) != line.size()) throw std::runtime_error("Cannot write retained decision history.");
+    }
+    // Windows must release the source handle before the atomic replacement.
+    source.close();
+    durableFlush(replacement);
+    if (!replacement.commit()) throw std::runtime_error("Cannot commit retained decision history.");
+}
 QVector<QJsonObject> Store::history() const {
     QFile file(directory_ + "/decisions.jsonl");
     if (!file.exists()) return {};

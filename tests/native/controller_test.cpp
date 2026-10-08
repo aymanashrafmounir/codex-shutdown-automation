@@ -96,6 +96,19 @@ private slots:
         QVERIFY(file.open(QIODevice::WriteOnly)); file.write("{\"armed\":true}"); file.close();
         QVERIFY_EXCEPTION_THROWN(store.settings(), std::runtime_error);
     }
+    void idleMonitorPhysicallyExpiresHistory() {
+        QTemporaryDir temporary; Store store(temporary.path()); FakeMonitor monitor; RecordingShutdown shutdown;
+        qint64 now = 1791460000000;
+        Controller controller(monitor, store, shutdown, true, [&] { return now; });
+        store.append({{"timestamp", QDateTime::fromMSecsSinceEpoch(now - 72LL * 3600000 + 60000, Qt::UTC)
+            .toString(Qt::ISODateWithMs)}, {"type", "expiry-probe"}});
+        now += 60000;
+        controller.tick();
+        QFile journal(temporary.path() + "/decisions.jsonl");
+        QVERIFY(journal.open(QIODevice::ReadOnly));
+        QVERIFY(!journal.readAll().contains("expiry-probe"));
+        QVERIFY(!controller.view().policy.armed); QCOMPARE(shutdown.calls, 0);
+    }
 };
 QTEST_GUILESS_MAIN(ControllerTest)
 #include "controller_test.moc"

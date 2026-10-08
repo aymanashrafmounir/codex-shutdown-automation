@@ -9,6 +9,8 @@ Controller::Controller(Monitor &monitor, Store &store, Shutdown &shutdown, bool 
     : QObject(parent), monitor_(monitor), store_(store), shutdown_(shutdown),
       clock_(clock ? std::move(clock) : makeSteadyClock()),
       policy_(store.settings()), simulation_(simulation) {
+    lastHistoryPruneAt_ = clock_();
+    store_.pruneHistory(lastHistoryPruneAt_);
     record("started", "Monitor started OFF. Previous authorization is never restored.");
     observation_ = monitor_.scan(clock_());
     timer_.setInterval(2000);
@@ -65,6 +67,11 @@ void Controller::tick() {
     if (busy_) return;
     busy_ = true;
     try {
+        const auto now = clock_();
+        if (now - lastHistoryPruneAt_ >= 60000) {
+            store_.pruneHistory(now);
+            lastHistoryPruneAt_ = now;
+        }
         observation_ = monitor_.scan(clock_());
         const bool wasArmed = policy_.view(clock_()).armed;
         if (policy_.evaluate(observation_, clock_())) requestShutdown();

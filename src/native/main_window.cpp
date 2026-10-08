@@ -260,8 +260,10 @@ void MainWindow::refresh() {
     simulation_->setText(text("SIMULATION · This instance cannot shut down your computer.", "محاكاة · هذا التشغيل لا يمكنه إغلاق جهازك."));
     error_->setText(view.error);
     error_->setVisible(!view.error.isEmpty());
-    tabs_->setTabText(0, text("Overview", "نظرة عامة"));
-    tabs_->setTabText(1, text("Decision history", "سجل القرارات"));
+    const auto running = std::count_if(view.monitor.threads.cbegin(), view.monitor.threads.cend(),
+        [](const Thread &thread) { return thread.turnStatus == "inProgress"; });
+    tabs_->setTabText(0, text("Overview · %1 running", "نظرة عامة · %1 جارية").arg(running));
+    tabs_->setTabText(1, text("Decision history · 3 days", "سجل القرارات · 3 أيام"));
     timing_->setTitle(text("Shutdown timing", "توقيت الإغلاق"));
     settleLabel_->setText(text("Idle confirmation", "تأكيد السكون"));
     countdownLabel_->setText(text("Final countdown", "العدّ التنازلي الأخير"));

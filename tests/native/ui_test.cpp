@@ -145,6 +145,20 @@ void UiTest::controlsUseOneTimePermissionAndExposeBlockers() {
     QVERIFY(!enable->isEnabled());
     QVERIFY(blockers->count() > 0);
     QCOMPARE(shutdown.calls, 0);
+
+    // An uncertain scan must expose every known running turn in the overview.
+    for (int index = 1; index <= 2; ++index) {
+        Thread extra = monitor.value.threads.first();
+        extra.id = QString("synthetic-chat-%1").arg(index);
+        extra.title = QString("Synthetic task %1").arg(index);
+        monitor.value.threads.append(extra);
+    }
+    controller.tick();
+    QCOMPARE(chats->rowCount(), 3);
+    auto *tabs = window.findChild<QTabWidget *>("viewTabs");
+    QVERIFY(tabs->tabText(0).contains("3"));
+    QVERIFY(tabs->tabText(1).contains("3"));
+    QCOMPARE(shutdown.calls, 0);
 }
 
 QTEST_MAIN(UiTest)

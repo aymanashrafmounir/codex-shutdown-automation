@@ -19,20 +19,24 @@
 #include <QCryptographicHash>
 #include <cstdio>
 #include <memory>
+#include <algorithm>
 
 using namespace csa;
 static QJsonObject compactStatus(const Controller &controller, const QString &scope) {
     const auto view = controller.view();
-    return {{"appId", "codex-shutdown-automation"}, {"version", "0.2.1"}, {"scope", scope},
+    const auto running = std::count_if(view.monitor.threads.cbegin(), view.monitor.threads.cend(),
+        [](const Thread &thread) { return thread.turnStatus == "inProgress"; });
+    return {{"appId", "codex-shutdown-automation"}, {"version", "0.2.2"}, {"scope", scope},
             {"phase", view.policy.phase}, {"armed", view.policy.armed}, {"healthy", view.monitor.healthy},
-            {"threads", view.monitor.threads.size()}, {"blockers", view.monitor.blockers.size()},
+            {"threads", view.monitor.threads.size()}, {"running", static_cast<int>(running)},
+            {"blockers", view.monitor.blockers.size()},
             {"simulation", view.simulation}, {"startupEnabled", view.startupEnabled}};
 }
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
     app.setApplicationName("Codex Shutdown Automation");
     app.setOrganizationName("CodexShutdownAutomation");
-    app.setApplicationVersion("0.2.1");
+    app.setApplicationVersion("0.2.2");
     app.setQuitOnLastWindowClosed(false);
     QCommandLineParser parser;
     parser.addHelpOption(); parser.addVersionOption();

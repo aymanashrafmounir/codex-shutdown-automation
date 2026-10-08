@@ -6,7 +6,7 @@
 - `codex_monitor.cpp` and `monitor_queries.h` read local SQLite metadata, history, goals, queue and projection offsets with read-only connections. Connections close after every scan.
 - `background_monitor.cpp` scans on a joined worker thread and copies its timestamp-preserving cache for UI/policy updates. The source is serialized; `verify(now)` reads it again, bypassing the cache before shutdown. The initial/stale/failed cache cannot authorize readiness.
 - `policy.cpp` owns in-memory one-time permission and waiting, settling, countdown and disarmed transitions.
-- `store.cpp` validates settings, atomically replaces them with `QSaveFile`, and flushes the decision journal with `FlushFileBuffers` on Windows. No prompt, credential or project copies.
+- `store.cpp` validates settings, atomically replaces them with `QSaveFile`, and flushes the decision journal with `FlushFileBuffers` on Windows. `pruneHistory(nowUtcMs)` physically removes records aged 72 hours or more, plus invalid/future timestamps, using a streamed atomic rewrite. The controller invokes it at startup and every minute; pruning failure blocks shutdown. Settings are preserved. No prompt, credential or project copies.
 - `controller.cpp` owns a serialized scan/decision loop, persistence, final verification and adapter invocation. It retains failure outcomes until an explicit user action.
 - `windows_shutdown.cpp` executes the fixed Windows system command with `/s /t 0`, without `/f`, a shell or forced termination. The cancellable countdown belongs to the domain policy.
 - `main_window.cpp` is native Qt Widgets with English/Arabic, chat table, blockers, timings, history and tray controls. No web renderer.
@@ -30,7 +30,7 @@ Required stores and columns:
 
 Only status/process metadata is selected from tool item JSON. Latest turns are ordered by rollout ordinal. Command sessions are grouped by thread and process ID across turns; their newest revision must explicitly record a valid exit before resolution. A process exit in another thread cannot resolve it.
 
-Completed turns need valid completion timestamps and final ordinal/byte offsets. Projection must cover them and equal the session file size. Database `data_version` and session file size/mtime are checked before returning. Changes during scanning, missing threads/files and unknown state fail closed.
+Completed turns need valid completion timestamps and final ordinal/byte offsets. Projection must cover them and equal the session file size. Per-thread validation errors preserve the full inventory and mark affected rows unknown; they keep monitoring unhealthy. Normal in-progress turns remain running while tools, goals or queued work are pending. Database `data_version` and session file size/mtime are checked before returning. Changes during scanning, missing threads/files and unknown state fail closed.
 
 ## Policy and save order
 

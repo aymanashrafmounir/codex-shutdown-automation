@@ -91,9 +91,11 @@ QMap<QString, Row> keyed(const Rows &rows, const QString &key) {
 void pending(Observation &observation, const QMap<QString, int> &indices, const QString &id, const QString &reason) {
     if (!indices.contains(id)) return;
     auto &thread = observation.threads[indices.value(id)];
-    thread.status = "blocked";
+    if (thread.status != "unknown") {
+        thread.status = thread.turnStatus == "inProgress" ? "running" : "blocked";
+        thread.reason = reason;
+    }
     thread.workPending = true;
-    thread.reason = reason;
     // turnStatus is independent: pending work must never mask a failed/interrupted turn.
 }
 
@@ -140,15 +142,18 @@ void readPending(const std::array<std::unique_ptr<Store>, 4> &stores, Observatio
 }
 
 void readThreads(const std::array<std::unique_ptr<Store>, 4> &stores, Observation &observation) {
-    const auto metadata = keyed(read(stores[0]->db,
+    auto metadata = keyed(read(stores[0]->db,
         "SELECT id, title, rollout_path, history_mode, updated_at_ms FROM threads ORDER BY id"), "id");
     const auto projection = keyed(read(stores[1]->db,
         "SELECT thread_id, next_rollout_byte_offset, next_rollout_ordinal FROM thread_history_projection_state"), "thread_id");
     const auto latest = keyed(read(stores[1]->db, monitorQueries::latestTurns), "thread_id");
     const auto terminals = keyed(read(stores[1]->db, monitorQueries::terminalOrdinals), "thread_id");
+    QSet<QString> missingMetadata;
     for (auto turn = latest.cbegin(); turn != latest.cend(); ++turn) {
-        if (!metadata.contains(turn.key()))
-            throw Failure{"UNKNOWN_THREAD", "A Codex turn has no matching thread metadata. Shutdown is blocked."};
+        if (!metadata.contains(turn.key())) {
+            missingMetadata.insert(turn.key());
+            metadata.insert(turn.key(), Row{{"id", turn.key()}});
+        }
     }
     struct FileStamp { QString path; qint64 size, modified; };
     QVector<FileStamp> files;
@@ -161,13 +166,6 @@ void readThreads(const std::array<std::unique_ptr<Store>, 4> &stores, Observatio
         if (thread.title.isEmpty()) thread.title = "Chat " + thread.id.left(8);
         thread.turnId = turn.value("turn_id").toString();
         thread.turnStatus = latest.contains(thread.id) ? turn.value("status").toString() : "unknown";
-        if (terminals.contains(thread.id)) {
-            const auto terminal = terminals.value(thread.id);
-            if (!integer(terminal.value("terminal_ordinal")) || terminal.value("terminal_ordinal").toLongLong() < 0 ||
-                terminal.value("invalid_ordinals").toLongLong() != 0)
-                throw Failure{"UNKNOWN_TERMINAL_STATE", "A Codex terminal turn has invalid event metadata."};
-            thread.terminalOrdinal = terminal.value("terminal_ordinal").toLongLong();
-        }
         thread.status = "unknown";
         thread.workPending = thread.turnStatus == "inProgress";
         thread.lastActivityAt = std::max({meta.value().value("updated_at_ms").toLongLong(),
@@ -175,13 +173,31 @@ void readThreads(const std::array<std::unique_ptr<Store>, 4> &stores, Observatio
         indices.insert(thread.id, observation.threads.size());
         observation.threads.append(thread);
         auto &result = observation.threads.last();
+        if (missingMetadata.contains(thread.id)) {
+            result.reason = "The turn has no matching thread metadata.";
+            observation.blockers.append(Blocker{"UNKNOWN_THREAD", "A Codex turn has no matching thread metadata. Shutdown is blocked."});
+            continue;
+        }
+        if (terminals.contains(thread.id)) {
+            const auto terminal = terminals.value(thread.id);
+            if (!integer(terminal.value("terminal_ordinal")) || terminal.value("terminal_ordinal").toLongLong() < 0 ||
+                terminal.value("invalid_ordinals").toLongLong() != 0) {
+                result.reason = "A terminal turn has invalid event metadata.";
+                observation.blockers.append(Blocker{"UNKNOWN_TERMINAL_STATE", "A Codex terminal turn has invalid event metadata."});
+                continue;
+            }
+            result.terminalOrdinal = terminal.value("terminal_ordinal").toLongLong();
+        }
         if (!latest.contains(thread.id)) {
             result.reason = "Thread metadata has no projected turn state.";
             observation.blockers.append(Blocker{"UNKNOWN_THREAD_STATE", "A Codex thread has no projected turn state. Shutdown is blocked."});
             continue;
         }
-        if (meta.value().value("history_mode").toString() != "paginated")
-            throw Failure{"STORE_INCOMPATIBLE", "A Codex thread uses an unsupported history format. Shutdown is blocked."};
+        if (meta.value().value("history_mode").toString() != "paginated") {
+            result.reason = "The thread uses an unsupported history format.";
+            observation.blockers.append(Blocker{"STORE_INCOMPATIBLE", "A Codex thread uses an unsupported history format. Shutdown is blocked."});
+            continue;
+        }
         if (thread.turnStatus == "completed" && (
             !integer(turn.value("completed_at")) || turn.value("completed_at").toLongLong() <= 0 ||
             !integer(turn.value("rollout_end_ordinal")) || turn.value("rollout_end_ordinal").toLongLong() < turn.value("rollout_ordinal").toLongLong() ||
@@ -195,8 +211,11 @@ void readThreads(const std::array<std::unique_ptr<Store>, 4> &stores, Observatio
         if (!info.isFile() || !projection.contains(thread.id) || projected.value("next_rollout_byte_offset").toLongLong() != info.size() ||
             !integer(projected.value("next_rollout_ordinal")) || projected.value("next_rollout_ordinal").toLongLong() <= turn.value("rollout_ordinal").toLongLong() ||
             (!turn.value("rollout_end_ordinal").isNull() && projected.value("next_rollout_ordinal").toLongLong() < turn.value("rollout_end_ordinal").toLongLong()) ||
-            (!turn.value("rollout_end_byte_offset").isNull() && projected.value("next_rollout_byte_offset").toLongLong() < turn.value("rollout_end_byte_offset").toLongLong()))
-            throw Failure{"PROJECTION_LAG", "Codex history has not caught up with its session files. Shutdown is blocked."};
+            (!turn.value("rollout_end_byte_offset").isNull() && projected.value("next_rollout_byte_offset").toLongLong() < turn.value("rollout_end_byte_offset").toLongLong())) {
+            result.reason = "The session history projection is not current.";
+            observation.blockers.append(Blocker{"PROJECTION_LAG", "Codex history has not caught up with its session files. Shutdown is blocked."});
+            continue;
+        }
         files.append(FileStamp{info.filePath(), info.size(), info.lastModified().toMSecsSinceEpoch()});
         if (thread.turnStatus == "inProgress") {
             result.status = "running"; result.reason = "Running or waiting for input or approval.";
@@ -246,8 +265,10 @@ Observation CodexMonitor::scan(qint64 now) {
             if (version(store->db) != store->version)
                 throw Failure{"STORE_CHANGED", "Codex state changed during this scan. Waiting for a consistent snapshot."};
         }
-        observation.healthy = std::none_of(observation.blockers.cbegin(), observation.blockers.cend(),
-            [](const Blocker &blocker) { return blocker.code.startsWith("UNKNOWN_"); });
+        observation.healthy = std::all_of(observation.blockers.cbegin(), observation.blockers.cend(),
+            [](const Blocker &blocker) {
+                return blocker.code == "PENDING_TOOL" || blocker.code == "UNFINISHED_GOAL" || blocker.code == "PENDING_QUEUE";
+            });
     } catch (const Failure &failure) {
         observation.blockers.append(Blocker{failure.code, failure.message});
     } catch (...) {
