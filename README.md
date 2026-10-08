@@ -46,7 +46,7 @@ Install Qt **6.8.3 MinGW x64**, the compatible **MinGW 13.1** compiler, CMake 3.
 .\scripts\Build.ps1 -QtRoot C:\Qt\6.8.3\mingw_64 -CompilerRoot C:\Qt\Tools\mingw1310_64
 ```
 
-The script builds the application, runs native policy/controller/SQLite/UI tests, and uses `windeployqt` to produce `dist\app`. Supply `-CMakePath` and `-NinjaPath` if these tools are not on PATH. Compatible Qt 6.8+ SDKs can also be selected; distributed packages must include their matching license notices.
+The script builds the application, runs native policy/controller/SQLite/UI tests and a Windows hidden-launch regression, and uses `windeployqt` to produce `dist\app`. Supply `-CMakePath` and `-NinjaPath` if these tools are not on PATH. Compatible Qt 6.8+ SDKs can also be selected; distributed packages must include their matching license notices.
 
 Open `CMakeLists.txt` in Qt Creator for development. Production source is under `src/native`; domain rules, orchestration, persistence, monitor and OS adapters, and Widgets UI have separate responsibilities. Periodic SQLite reads run on a background thread so the window remains responsive; the shutdown gate performs an uncached verification.
 

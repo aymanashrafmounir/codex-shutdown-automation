@@ -46,7 +46,7 @@ Execution order: save settings, save checkpoint and intent, scan again, compare 
 2. Desktop and per-user Startup shortcuts installed. Live process stays OFF, including after manual process restart.
 3. All supported local chats and subagents are monitored; uncertain or unfinished work keeps the computer running.
 4. Cancellation, new work, terminal failures, missing projection, schema errors, pending queue/goals/processes and persistence failures are covered with native QtTest/SQLite fixtures.
-5. Native Widgets tests exercise Enable, countdown, Cancel, settings, Arabic RTL and recent history using recording adapters only. Background adapter tests cover nonblocking cache access, unchanged capture timestamps, fresh final verification and joined destruction.
+5. Native Widgets tests exercise Enable, countdown, Cancel, settings, Arabic RTL and recent history using recording adapters only. Background adapter tests cover nonblocking cache access, unchanged capture timestamps, fresh final verification and joined destruction. The Windows launch regression starts an isolated simulation with `SW_HIDE`, uses second-launch IPC, and checks that Windows exposes a visible main window; acknowledgement alone is insufficient.
 6. No real shutdown is required for acceptance. Windows restart/logon behavior is configured but only verified by an actual restart when explicitly performed.
 7. Independent safety review passes before publication. Runtime state and captures remain ignored.
 

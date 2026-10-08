@@ -23,7 +23,7 @@
 using namespace csa;
 static QJsonObject compactStatus(const Controller &controller, const QString &scope) {
     const auto view = controller.view();
-    return {{"appId", "codex-shutdown-automation"}, {"version", "0.2.0"}, {"scope", scope},
+    return {{"appId", "codex-shutdown-automation"}, {"version", "0.2.1"}, {"scope", scope},
             {"phase", view.policy.phase}, {"armed", view.policy.armed}, {"healthy", view.monitor.healthy},
             {"threads", view.monitor.threads.size()}, {"blockers", view.monitor.blockers.size()},
             {"simulation", view.simulation}, {"startupEnabled", view.startupEnabled}};
@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
     app.setApplicationName("Codex Shutdown Automation");
     app.setOrganizationName("CodexShutdownAutomation");
-    app.setApplicationVersion("0.2.0");
+    app.setApplicationVersion("0.2.1");
     app.setQuitOnLastWindowClosed(false);
     QCommandLineParser parser;
     parser.addHelpOption(); parser.addVersionOption();
@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
                     if (request["scope"].toString() != scope) response = {{"error", "Another Codex store is monitored. Quit that instance before changing CODEX_HOME."}};
                     else {
                         const auto command = request["command"].toString();
-                        if (command == "show") { window.showNormal(); window.raise(); window.activateWindow(); }
+                        if (command == "show") window.showWindow();
                         else if (command == "quit") { controller.cancel(); quit = true; }
                         else if (command != "status") response = {{"error", "Unsupported local command."}};
                         if (response.isEmpty()) response = compactStatus(controller, scope);
@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
         });
         QObject::connect(&app, &QCoreApplication::aboutToQuit, &controller, [&] { controller.cancel(); });
         controller.start();
-        if (!parser.isSet("background") || !QSystemTrayIcon::isSystemTrayAvailable()) window.show();
+        if (!parser.isSet("background") || !QSystemTrayIcon::isSystemTrayAvailable()) window.showWindow();
         return app.exec();
     } catch (const std::exception &error) {
         QMessageBox::critical(nullptr, app.applicationName(), QString::fromUtf8(error.what())); return 1;

@@ -23,6 +23,9 @@
 #include <QTabWidget>
 #include <QVBoxLayout>
 #include <algorithm>
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#endif
 
 namespace csa {
 namespace {
@@ -324,7 +327,15 @@ void MainWindow::saveSettings() {
     settings.countdownSeconds = countdown_->value();
     if (controller_.configure(settings)) { dirty_ = false; savedFeedback_ = true; refresh(); }
 }
-void MainWindow::showWindow() { showNormal(); raise(); activateWindow(); }
+void MainWindow::showWindow() {
+    showNormal();
+#ifdef Q_OS_WIN
+    // STARTUPINFO can override Qt's first native show after a hidden tray launch.
+    if (QApplication::platformName() == "windows")
+        ::ShowWindow(reinterpret_cast<HWND>(winId()), SW_RESTORE);
+#endif
+    raise(); activateWindow();
+}
 void MainWindow::quitMonitor() { controller_.cancel(); tray_->hide(); QApplication::quit(); }
 void MainWindow::closeEvent(QCloseEvent *event) {
     if (QSystemTrayIcon::isSystemTrayAvailable()) { hide(); event->ignore(); }
