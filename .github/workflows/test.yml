@@ -1,0 +1,39 @@
+name: Windows checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install native build tools and Qt
+        shell: pwsh
+        run: |
+          python -m pip install aqtinstall==3.3.0 cmake==4.4.4 ninja==1.13.2
+          python -m aqt install-qt windows desktop 6.8.3 win64_mingw --archives qtbase --outputdir "$env:RUNNER_TEMP/Qt"
+          python -m aqt install-tool windows desktop tools_mingw1310 qt.tools.win64_mingw1310 --outputdir "$env:RUNNER_TEMP/Qt"
+      - name: Build, test and deploy native application
+        shell: pwsh
+        run: ./scripts/Build.ps1 -QtRoot "$env:RUNNER_TEMP/Qt/6.8.3/mingw_64" -CompilerRoot "$env:RUNNER_TEMP/Qt/Tools/mingw1310_64"
+      - name: Parse Windows scripts
+        shell: pwsh
+        run: |
+          Get-ChildItem scripts/*.ps1 | ForEach-Object {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null
+            if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
+          }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: codex-shutdown-automation-windows-x64
+          path: |
+            dist/app/
+            dist/scripts/Install.ps1
+            dist/scripts/Uninstall.ps1

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+runtime/
+.local/
+*.log
+*.sqlite*
+*.jsonl
+.impeccable/review/
+.impeccable/mocks/
+coverage/
+build/
+aqtinstall.log

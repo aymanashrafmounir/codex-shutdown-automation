@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-08T12:29:24Z",
+  "title": "Design System: Codex Shutdown Automation",
+  "extensions": {
+    "platform": {
+      "kind": "native-desktop",
+      "operatingSystem": "Windows",
+      "toolkit": "Qt Widgets",
+      "implementation": [
+        "src/native/main_window.cpp",
+        "src/native/window_style.cpp"
+      ],
+      "coordinates": "Qt logical coordinates; native window font in points and explicit QSS text sizes in pixels",
+      "initialWindow": {
+        "width": 1100,
+        "height": 740
+      },
+      "minimumWindow": {
+        "width": 800,
+        "height": 600
+      },
+      "layoutDirection": "English LTR; Arabic RTL",
+      "componentRendering": "Native QWidget controls with QPalette and Qt stylesheet overrides; no HTML runtime",
+      "previewPolicy": "Native component QSS is recorded below. No web component approximations or synthetic tonal ramps."
+    },
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Forest green"
+      },
+      "primary-hover": {
+        "role": "primary",
+        "displayName": "Deep forest green"
+      },
+      "primary-soft": {
+        "role": "primary",
+        "displayName": "Enabled-state green"
+      },
+      "attention-bg": {
+        "role": "secondary",
+        "displayName": "Amber paper"
+      },
+      "attention-text": {
+        "role": "secondary",
+        "displayName": "Amber ink"
+      },
+      "attention-border": {
+        "role": "secondary",
+        "displayName": "Amber line"
+      },
+      "error": {
+        "role": "secondary",
+        "displayName": "Failure red"
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Warm paper"
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Work surface"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted ink"
+      },
+      "alternate-row": {
+        "role": "neutral",
+        "displayName": "Table tone"
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Boundary line"
+      },
+      "disabled-text": {
+        "role": "neutral",
+        "displayName": "Inactive text"
+      },
+      "focus": {
+        "role": "secondary",
+        "displayName": "Keyboard focus green"
+      }
+    },
+    "typographyMeta": {
+      "state": {
+        "displayName": "Principal state",
+        "purpose": "OFF and shutdown-phase labels."
+      },
+      "title": {
+        "displayName": "Product title",
+        "purpose": "Window identity."
+      },
+      "description": {
+        "displayName": "State description",
+        "purpose": "The consequence of the current shutdown phase."
+      },
+      "body": {
+        "displayName": "Native window text",
+        "purpose": "Labels, table entries and controls inherit the Windows system font."
+      }
+    },
+    "focus": {
+      "refersTo": "colors.focus",
+      "width": "2px",
+      "controls": [
+        "QPushButton",
+        "QSpinBox",
+        "QComboBox"
+      ],
+      "otherControls": "Qt supplies table, tab, menu and scrollbar keyboard focus and selection behavior."
+    },
+    "motion": [
+      {
+        "name": "state-update",
+        "value": "immediate",
+        "purpose": "Application-owned states and timer labels update without authored animation or transitions."
+      }
+    ],
+    "elevation": {
+      "applicationShadows": "none",
+      "separation": "One-pixel borders and tonal surfaces; native OS window rendering remains."
+    },
+    "nativeComponents": [
+      {
+        "name": "Enable button",
+        "widget": "QPushButton",
+        "refersTo": "button-primary",
+        "qss": "QPushButton { min-height: 26px; padding: 5px 12px; } QPushButton#enableButton { color: #fffef9; background: #206246; border: 1px solid #206246; border-radius: 6px; } QPushButton#enableButton:hover { background: #164c35; } QPushButton#enableButton:disabled { background: #d8dfd6; color: #52645d; border-color: #d8dfd6; } QPushButton:focus { border: 2px solid #39735a; }"
+      },
+      {
+        "name": "Shutdown state",
+        "widget": "QFrame and QLabel",
+        "refersTo": "state-panel",
+        "qss": "QFrame#statePanel { background: #fffef9; border: 1px solid #d8dfd6; border-radius: 10px; } QFrame#statePanel[phase=\"waiting\"], QFrame#statePanel[phase=\"settling\"] { background: #e6efe8; } QFrame#statePanel[phase=\"countdown\"] { background: #f5e9d6; } QLabel#stateName { font-size: 32px; font-weight: 600; }"
+      },
+      {
+        "name": "Blocker list",
+        "widget": "QListWidget",
+        "qss": "QListWidget#blockerList { color: #713e0a; background: #f5e9d6; border: 1px solid #ddcbaa; }",
+        "behavior": "Displays deduplicated monitor and policy blockers, including healthy-monitor blockers. Native scrolling exposes entries beyond the height limit."
+      },
+      {
+        "name": "Native timing and language inputs",
+        "widget": "QSpinBox and QComboBox",
+        "qss": "QSpinBox:focus, QComboBox:focus { border: 2px solid #39735a; }",
+        "behavior": "Timing ranges are 60–3600 seconds. Native editing and selection remain. Saving cancels current permission."
+      },
+      {
+        "name": "Chats and history tables",
+        "widget": "QTableWidget",
+        "qss": "QTableWidget { border: 1px solid #d8dfd6; gridline-color: #d8dfd6; } QHeaderView::section { background: #edf0e8; color: #52645d; border: 0; border-bottom: 1px solid #d8dfd6; padding: 8px; }",
+        "behavior": "Read-only rows; native selection and scrolling. Pending chats lead, and history remains newest first."
+      }
+    ]
+  },
+  "components": [],
+  "narrative": {
+    "northStar": "Office proof-sheet",
+    "overview": "The approved office proof-sheet world carries into a native Windows Qt Widgets application: warm paper, ink, forest-green decisions and amber attention. Aligned data and restrained typography keep the state legible during everyday work. Standard Windows controls carry navigation, editing and window behavior.\n\nThe principal state remains unmistakable. Color supports the written OFF, waiting, idle-confirmation and countdown labels; it never replaces them. The application uses native widgets throughout, including tables, tabs, spin boxes, a language selector and a system-tray menu.",
+    "keyCharacteristics": [
+      "Written shutdown state",
+      "Native Windows interaction",
+      "Aligned data",
+      "Tonal state changes",
+      "English and Arabic layout"
+    ],
+    "rules": [],
+    "dos": [
+      "Do use written states together with the established palette.",
+      "Do preserve native keyboard behavior, scrolling, focus and Arabic layout direction.",
+      "Do show monitoring errors and blockers where the user can inspect them.",
+      "Do keep the simulation notice visible in a simulated instance."
+    ],
+    "donts": [
+      "Don't restore the browser interface, web fonts or web breakpoints in the native application.",
+      "Don't add decorative shadows, marketing panels or emoji controls.",
+      "Don't hide the sole cancellation interface when no system tray is available."
+    ]
+  }
+}
